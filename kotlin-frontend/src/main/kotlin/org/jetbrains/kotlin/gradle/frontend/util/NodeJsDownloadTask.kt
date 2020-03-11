@@ -69,7 +69,7 @@ open class NodeJsDownloadTask : DefaultTask() {
     private fun detectLatest(): String {
         val url = URL("${mirror()}/latest/SHASUMS256.txt")
         val op = newOperation().apply {
-            loggingHeader = "Get latest version from $url..."
+//            loggingHeader = "Get latest version from $url..."
             description = "Get latest version"
         }
         op.started("Connecting...")
@@ -120,7 +120,7 @@ open class NodeJsDownloadTask : DefaultTask() {
 
     private fun download(from: URL, to: File) {
         val op = newOperation().apply {
-            loggingHeader = "Downloading $from"
+//            loggingHeader = "Downloading $from"
             description = "Downloading"
         }
 

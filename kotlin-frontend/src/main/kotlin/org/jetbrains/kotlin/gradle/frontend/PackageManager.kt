@@ -1,10 +1,11 @@
 package org.jetbrains.kotlin.gradle.frontend
 
-import org.gradle.api.*
+import org.gradle.api.Project
+import org.gradle.api.Task
 
 /**
-* @author Sergey Mashkov
-*/
+ * @author Sergey Mashkov
+ */
 interface PackageManager {
     fun onIdeaSync(project: Project)
 

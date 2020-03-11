@@ -17,7 +17,9 @@ import java.util.ArrayDeque
 open class GenerateWebPackConfigTask : DefaultTask() {
     @get:Internal
     private val configsDir: File
-        get() = project.projectDir.resolve("webpack.config.d")
+        get() = project.file("$projectDirectory/webpack.config.d").apply {
+            mkdirsOrFail()
+        }
 
     @Input
     val projectDirectory: String = project.projectDir.absolutePath
@@ -54,7 +56,9 @@ open class GenerateWebPackConfigTask : DefaultTask() {
     }
 
     init {
+        println("Init webpack config")
         (inputs as TaskInputs).dir(configsDir).optional()
+        println("After configsDir")
 
         onlyIf {
             bundles.size == 1 && bundles.single().webpackConfigFile == null
@@ -62,6 +66,7 @@ open class GenerateWebPackConfigTask : DefaultTask() {
     }
 
     fun getModuleResolveRoots(testMode: Boolean): List<String> {
+        println("Resolving")
         val resolveRoots = mutableListOf<String>()
 
         val dceOutputFiles = project.tasks
@@ -78,8 +83,8 @@ open class GenerateWebPackConfigTask : DefaultTask() {
             while (queue.isNotEmpty()) {
                 val current = queue.removeFirst()
                 val dependencies = current.configurations.findByName("compile")?.allDependencies
-                    ?.filterIsInstance<ProjectDependency>().orEmpty()
-                    .mapNotNull { it.dependencyProject }
+                        ?.filterIsInstance<ProjectDependency>().orEmpty()
+                        .mapNotNull { it.dependencyProject }
 
                 allProjects.addAll(dependencies)
                 queue.addAll(dependencies)
@@ -107,6 +112,7 @@ open class GenerateWebPackConfigTask : DefaultTask() {
 
         // node modules
         resolveRoots.add(project.buildDir.resolve("node_modules").absolutePath)
+        resolveRoots.add(project.rootProject.buildDir.resolve("node_modules").absolutePath)
         resolveRoots.add(project.buildDir.resolve("node_modules").toRelativeString(project.buildDir))
 
         return resolveRoots
@@ -125,8 +131,11 @@ open class GenerateWebPackConfigTask : DefaultTask() {
 
     @TaskAction
     fun generateConfig() {
-        val bundle = bundles.singleOrNull() ?: throw GradleException("Only single webpack bundle supported")
+        println("Beginning task action")
+        val bundle = bundles.singleOrNull()
+                ?: throw GradleException("Only single webpack bundle supported")
 
+        println("generating webpack config")
         val resolveRoots = getModuleResolveRoots(false)
 
         val json = linkedMapOf(
@@ -175,7 +184,9 @@ open class GenerateWebPackConfigTask : DefaultTask() {
             out.appendln()
 
             val p = "^\\d+".toRegex()
-            configsDir.listFiles()?.sortedBy { p.find(it.nameWithoutExtension)?.value?.toInt() ?: 0 }?.forEach {
+            configsDir?.listFiles()?.sortedBy {
+                p.find(it.nameWithoutExtension)?.value?.toInt() ?: 0
+            }?.forEach {
                 out.appendln("// from file ${it.path}")
                 it.reader().use {
                     it.copyTo(out)
@@ -183,6 +194,8 @@ open class GenerateWebPackConfigTask : DefaultTask() {
                 out.appendln()
             }
         }
+
+        println(webPackConfigFile.readLines())
     }
 
     private fun Kotlin2JsCompile.outputFileBridge(): File {
@@ -198,8 +211,10 @@ open class GenerateWebPackConfigTask : DefaultTask() {
             return when (dir) {
                 is String -> File(dir).let { if (it.isAbsolute) it else project.buildDir.resolve(it) }
                 is File -> dir
-                is Function0<*> -> handleFile(project, dir() ?: throw IllegalArgumentException("function for webPackConfig.bundleDirectory shouldn't return null"))
-                is Closure<*> -> handleFile(project, dir.call() ?: throw IllegalArgumentException("closure for webPackConfig.bundleDirectory shouldn't return null"))
+                is Function0<*> -> handleFile(project, dir()
+                        ?: throw IllegalArgumentException("function for webPackConfig.bundleDirectory shouldn't return null"))
+                is Closure<*> -> handleFile(project, dir.call()
+                        ?: throw IllegalArgumentException("closure for webPackConfig.bundleDirectory shouldn't return null"))
                 else -> project.file(dir)
             }
         }

@@ -3,14 +3,19 @@ package org.jetbrains.kotlin.gradle.frontend.npm
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.FileCollection
 import org.gradle.api.internal.artifacts.dependencies.DefaultSelfResolvingDependency
 import org.gradle.api.internal.file.AbstractFileCollection
+import org.gradle.api.internal.tasks.AbstractTaskDependency
 import org.gradle.api.internal.tasks.DefaultTaskDependency
+import org.gradle.api.internal.tasks.TaskDependencyContainer
+import org.gradle.api.internal.tasks.TaskDependencyResolveContext
 import org.jetbrains.kotlin.gradle.frontend.Dependency
 import org.jetbrains.kotlin.gradle.frontend.KotlinNewMpp
 import org.jetbrains.kotlin.gradle.frontend.PackageManager
 import org.jetbrains.kotlin.gradle.frontend.util.NodeJsDownloadTask
 import java.io.File
+
 
 class NpmPackageManager(val project: Project) : PackageManager {
     private val packageJsonFile: File
@@ -21,7 +26,6 @@ class NpmPackageManager(val project: Project) : PackageManager {
 
     override fun require(dependencies: List<Dependency>) {
         requiredDependencies.addAll(dependencies)
-
         defineTasks()
     }
 
@@ -52,17 +56,21 @@ class NpmPackageManager(val project: Project) : PackageManager {
     }
 
     private fun withConfiguration(name: String, block: (Configuration) -> Unit) {
-        project.configurations.findByName(name)?.let(block) ?: project.configurations.whenObjectAdded { configuration ->
-            if (configuration.name == name) {
-                block(configuration)
-            }
-        }
+        project.configurations.findByName(name)?.let(block)
+                ?: project.configurations.whenObjectAdded { configuration ->
+                    if (configuration.name == name) {
+                        block(configuration)
+                    }
+                }
     }
 
     private fun injectDependencies() {
         withConfiguration("compile") { configuration ->
             configuration.dependencies.add(DefaultSelfResolvingDependency(object : AbstractFileCollection() {
-                override fun getBuildDependencies() = DefaultTaskDependency()
+                override fun visitDependencies(context: TaskDependencyResolveContext) {
+                    context.add(DefaultTaskDependency())
+                    super.visitDependencies(context)
+                }
 
                 override fun getFiles(): MutableSet<File> {
                     return project.tasks.filterIsInstance<NpmDependenciesTask>().flatMap { it.results }.toMutableSet()

@@ -29,7 +29,7 @@ open class NpmInstallTask : DefaultTask() {
             .firstOrNull()
 
     @OutputDirectory
-    val nodeModulesDir: File = project.buildDir.resolve("node_modules")
+    val nodeModulesDir: File = project.rootProject.buildDir.resolve("node_modules")
 
     init {
         if (npmDirFile != null) inputs.file(npmDirFile)

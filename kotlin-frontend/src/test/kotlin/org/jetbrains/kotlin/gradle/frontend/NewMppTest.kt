@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.gradle.frontend
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.jetbrains.kotlin.gradle.frontend.util.mkdirsOrFail
+import org.jetbrains.kotlin.gradle.frontend.webpack.GenerateWebPackConfigTask
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -15,8 +16,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NewMppTest {
-    private val gradleVersion: String = "4.10.3"
-    private val kotlinVersion: String = "1.3.21"
+    private val gradleVersion: String = "6.1.1"//"4.10.3"
+    private val kotlinVersion: String = "1.3.70"
 
     private val port = 8098
     private val builder = BuildScriptBuilder()
@@ -155,21 +156,13 @@ repositories {
 }
 
 kotlin {
-    targets {
-        fromPreset(presets.jvm, 'jvm')
-        fromPreset(presets.js, 'js') {
-            configure([compilations.main, compilations.test]) {
-                tasks.getByName(compileKotlinTaskName).kotlinOptions {
-                    sourceMap = true
-                    moduleKind = "commonjs"
-                    metaInfo = true
-                }
-            }
 
-            configure(compilations.main) {
-                tasks.getByName(compileKotlinTaskName).kotlinOptions {
-                    main = "call"
-                }
+    js {
+        compilations.all {
+            tasks[compileKotlinTaskName].kotlinOptions {
+                metaInfo = true
+                sourceMap = true
+                moduleKind = 'commonjs'
             }
         }
     }
@@ -184,17 +177,6 @@ kotlin {
             dependencies {
                 implementation 'org.jetbrains.kotlin:kotlin-test-common'
                 implementation 'org.jetbrains.kotlin:kotlin-test-annotations-common'
-            }
-        }
-        jvmMain {
-            dependencies {
-                implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
-            }
-        }
-        jvmTest {
-            dependencies {
-                implementation 'org.jetbrains.kotlin:kotlin-test'
-                implementation 'org.jetbrains.kotlin:kotlin-test-junit'
             }
         }
         jsMain {
@@ -225,6 +207,8 @@ kotlinFrontend {
         )
 
         val result = runner.withArguments("bundle").build()
+//        val result = runner.withArguments("run").build()
+//        val result = runner.withArguments("webpack-config").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":npm-preunpack")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":npm-install")?.outcome)
